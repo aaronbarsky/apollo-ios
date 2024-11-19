@@ -175,13 +175,32 @@ class FoundationStream : NSObject, WebSocketStream, StreamDelegate, SOCKSProxyab
     return Data(bytes: buffer, count: length)
   }
 
-  func cleanup() {
-    delegate = nil
-    inputStream?.close()
-    outputStream?.close()
-    outputStream = nil
-    inputStream = nil
-  }
+ // Because cleanup can be called from many threads
+    // there can be crashes when the streams call the delegate.
+    // Starscream "fixes" this by setting the delegate to nil
+    // https://github.com/daltoniam/Starscream/issues/859
+    // But that seems really dubious.  Try setting a fake
+    // delegate so that the callbacks can continue and keep
+    // it alive until the callback workQueue has finished processing
+    // the current stream methods.
+    class FakeDelegate:NSObject, StreamDelegate {}
+    func cleanup() {
+        delegate = nil
+        var fakeDelegate:FakeDelegate? = FakeDelegate()
+        if let stream = inputStream {
+            stream.delegate = fakeDelegate
+            stream.close()
+        }
+        if let stream = outputStream {
+            stream.delegate = fakeDelegate
+            stream.close()
+        }
+        outputStream = nil
+        inputStream = nil
+        workQueue.async {
+            fakeDelegate = nil
+        }
+    }
 
   #if os(Linux) || os(watchOS)
   #else
