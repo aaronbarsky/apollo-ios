@@ -176,16 +176,9 @@ class FoundationStream : NSObject, WebSocketStream, StreamDelegate, SOCKSProxyab
   }
 
   func cleanup() {
-    if let stream = inputStream {
-      stream.delegate = nil
-      CFReadStreamSetDispatchQueue(stream, nil)
-      stream.close()
-    }
-    if let stream = outputStream {
-      stream.delegate = nil
-      CFWriteStreamSetDispatchQueue(stream, nil)
-      stream.close()
-    }
+    delegate = nil
+    inputStream?.close()
+    outputStream?.close()
     outputStream = nil
     inputStream = nil
   }
